@@ -1,0 +1,25 @@
+Vector Search and Embeddings
+
+An embedding is a list of numbers that represents the meaning of a piece of text.
+A model trained on large amounts of text learns to place passages with similar
+meaning close together in this numeric space, even when they use different words.
+For example, the phrases "car" and "automobile" produce embeddings that sit near
+each other, while "car" and "banana" sit far apart.
+
+Vector similarity search uses these embeddings to find relevant text. A query is
+embedded into the same space as the stored documents, and the system returns the
+stored chunks whose vectors are closest to the query vector, usually measured by
+cosine similarity or Euclidean distance. This is different from keyword search,
+which matches exact words. Keyword search would miss a passage about
+"automobiles" when the user asks about "cars", while vector search finds it
+because the meanings are close.
+
+FAISS, which stands for Facebook AI Similarity Search, is a library for storing
+embeddings and searching them efficiently. It builds an index over the vectors so
+that finding the nearest neighbors for a query stays fast even when there are
+hundreds of thousands of chunks. The index can be saved to disk and reloaded,
+which lets a RAG system skip the expensive embedding step on later runs.
+
+The quality of retrieval depends heavily on the embedding model. A stronger model
+captures more subtle relationships between concepts, which leads to more relevant
+chunks and therefore better grounded answers.

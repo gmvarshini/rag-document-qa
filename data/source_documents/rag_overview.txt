@@ -1,0 +1,24 @@
+Retrieval Augmented Generation Overview
+
+Retrieval Augmented Generation, commonly shortened to RAG, is a technique that
+combines a document retrieval system with a large language model. Instead of
+relying only on the knowledge stored inside the model's weights, a RAG system
+first fetches relevant passages from an external collection of documents and
+then asks the language model to answer using those passages as context.
+
+A RAG pipeline has three main stages. The first stage is ingestion, where raw
+documents are loaded and split into smaller overlapping chunks. The second stage
+is retrieval, where each chunk is converted into a numerical vector embedding and
+stored in a vector index so that similar chunks can be found quickly. The third
+stage is generation, where the most relevant chunks for a question are passed to
+the language model along with an instruction to answer only from that context.
+
+The main benefit of RAG is grounding. Because the model is told to rely on the
+retrieved passages, its answers stay close to the source material and it is much
+less likely to invent facts. RAG also makes it easy to update a system's
+knowledge: you simply add or change documents and rebuild the index, without
+retraining the underlying model.
+
+Common uses of RAG include question answering over company handbooks, customer
+support assistants that cite policy documents, and research tools that summarize
+large collections of papers while pointing back to the original sources.

@@ -1,0 +1,13 @@
+# Environment and secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store
+
+# Generated vector store index
+vector_store/
