@@ -34,6 +34,9 @@ def _format_context(chunks: list[Document]) -> str:
     formatted_parts = []
     for index, chunk in enumerate(chunks, start=1):
         source = chunk.metadata.get("source", "unknown")
+        page = chunk.metadata.get("page")
+        if page is not None:
+            source = f"{source}, page {page}"
         formatted_parts.append(f"[{index}] (source: {source})\n{chunk.page_content}")
     return "\n\n".join(formatted_parts)
 
