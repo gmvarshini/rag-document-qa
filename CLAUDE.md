@@ -1,25 +1,58 @@
-Instructions for Claude Code
-You are building a Retrieval Augmented Generation document question answering system. Follow these steps precisely and in order.
-Step 1: Initialize the project
-Create the directory structure shown above. Initialize a Git repository. Create a `.gitignore` file that excludes `.env`, `__pycache__`, `.venv`, `*.pyc`, and `.DS_Store`.
-Step 2: Set up UV and the virtual environment
-Run `uv init` if not already initialized, then `uv venv` to create the virtual environment. Add dependencies using `uv add langchain langchain-community faiss-cpu pydantic pydantic-settings python-dotenv ollama-python` and `uv add --dev pytest ruff`.
-Step 3: Build the configuration module
-In `src/config.py`, define a Pydantic Settings class named `AppConfig` that inherits from `pydantic_settings.BaseSettings`. It should load the following fields from environment variables: `OLLAMA_MODEL` (default "llama3.2"), `CHUNK_SIZE` (default 500), `CHUNK_OVERLAP` (default 50), `VECTOR_STORE_PATH` (default "./vector_store"), and `TOP_K_RESULTS` (default 4). Include full type hints and a docstring explaining each field's purpose. Create a `.env.example` file documenting these variables and a `.env` file with actual values for local development.
-Step 4: Build the ingestion module
-In `src/ingestion.py`, write a function `load_and_chunk_documents` that reads all text files from the `data/source_documents` directory, splits them into overlapping chunks using LangChain's `RecursiveCharacterTextSplitter` with the chunk size and overlap from config, and returns a list of LangChain `Document` objects with metadata including source filename. Add a complete docstring with Args, Returns, and Raises sections following the Google docstring style.
-Step 5: Build the retrieval module
-In `src/retrieval.py`, write a function `build_vector_store` that takes the chunked documents, generates embeddings using a local sentence-transformers model wrapped through LangChain's `HuggingFaceEmbeddings`, builds a FAISS index, and saves it to disk at the configured path. Write a second function `load_vector_store_and_search` that loads the saved FAISS index and performs a similarity search for a given query string, returning the top K matching chunks with their source metadata. Both functions require full docstrings and type hints.
-Step 6: Build the generation module
-In `src/generation.py`, write a function `generate_grounded_answer` that takes a user question and the retrieved document chunks, constructs a prompt that instructs the LLM to answer using only the provided context and to explicitly say when the answer is not present in the context, sends this prompt to a local Ollama model, and returns the generated answer along with the list of source documents used. Include a docstring explaining the grounding strategy.
-Step 7: Build the main entry point
-In `src/main.py`, write a command line interface using Python's `argparse` that accepts a `--query` argument, runs the full pipeline from ingestion through generation on first run, caches the vector store for subsequent runs, and prints the answer with cited sources clearly formatted.
-Step 8: Write tests
-In `tests/test_retrieval.py`, write at least three pytest test cases covering chunking behavior, vector store creation, and search result relevance using a small fixture document set.
-Step 9: Write the README
-Write a comprehensive `README.md` explaining the project purpose, architecture diagram in text form, setup instructions using UV, how to add your own documents, how to run queries, and a section explaining the RAG pattern conceptually for anyone reading the repository. Do not use em dashes anywhere in the README or code comments. Keep the tone professional and direct.
-Step 10: Finalize and publish
-Run `ruff check` and fix any linting issues. Stage all files, write a clear commit message describing the project, and push to a new GitHub repository named `rag-document-qa`. Confirm the push succeeded and report the repository URL.
----
-Key Concepts to Highlight for Learning
-Explain in your own words, either in the README or in a short LEARNINGS.md file, why chunk overlap prevents context loss at chunk boundaries, why grounding matters for reducing hallucination, and how vector similarity search differs from keyword search. This demonstrates conceptual understanding beyond just running commands, which is what interviewers look for.
+# CLAUDE.md
+
+Notes for working on this repo with Claude Code.
+
+## Project
+
+A local RAG system that answers questions from your own `.txt` and `.pdf` files.
+Documents are split into chunks, embedded with sentence-transformers
+(`all-MiniLM-L6-v2`), stored in a FAISS index, and the best chunks are given to
+Llama 3.2 through Ollama. The model must answer only from those chunks, and the
+answer lists its sources. Everything runs on the local machine.
+
+## Layout
+
+- `src/config.py`: settings (model, chunk size 500, overlap 50, top 4 results)
+- `src/ingestion.py`: loads text files and PDF pages, splits them into chunks
+- `src/retrieval.py`: builds, saves and searches the FAISS index
+- `src/generation.py`: builds the grounded prompt and calls Ollama
+- `src/main.py`: command line entry point
+- `tests/test_ingestion.py`: text and PDF loading, no model needed
+- `tests/test_retrieval.py`: chunking, index and search, downloads the embedding model
+- `LEARNINGS.md`: chunk overlap, grounding, vector vs keyword search
+
+## Commands
+
+```bash
+uv sync                                    # install
+uv run pytest                              # tests
+uv run ruff check                          # lint
+uv run python -m src.main --query "What are the three stages of a RAG pipeline?"
+uv run python -m src.main --query "..." --rebuild   # after changing documents
+```
+
+Ollama must be running with `llama3.2` pulled to generate answers.
+
+## Rules
+
+- Settings go in `src/config.py` and `.env.example`, never hard coded.
+- Every chunk keeps `source` and `chunk_index` in its metadata, plus `page` for
+  PDFs. Citations depend on this.
+- Documents and questions must use the same embedding model.
+- Do not weaken the grounding prompt in `src/generation.py`. If the answer is not
+  in the context, the model must reply with the fixed "not present" sentence.
+- New file types go through `_read_pages` in `src/ingestion.py`, with a test.
+- Tests create their own documents in a temporary folder. Tests that need no
+  model go in `test_ingestion.py`.
+- Type hints and Google style docstrings on all functions.
+- Plain English in docs and comments. No em dashes.
+
+## CI
+
+`.github/workflows/tests.yml` runs ruff and pytest on every push and pull request,
+with the embedding model cached between runs.
+
+## Ideas for later
+
+Hybrid search with BM25, a re-ranking step, OCR for scanned PDFs, and a small
+evaluation set of questions with known answers.
