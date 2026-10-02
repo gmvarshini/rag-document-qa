@@ -54,9 +54,11 @@ def _print_answer(question: str, answer: str, sources) -> None:
     else:
         seen = []
         for chunk in sources:
+            page = chunk.metadata.get("page")
+            page_part = f"page {page}, " if page is not None else ""
             label = (
                 f"{chunk.metadata.get('source', 'unknown')} "
-                f"(chunk {chunk.metadata.get('chunk_index', '?')})"
+                f"({page_part}chunk {chunk.metadata.get('chunk_index', '?')})"
             )
             if label not in seen:
                 seen.append(label)
