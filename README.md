@@ -1,7 +1,7 @@
 # RAG Document Question Answering
 
 A local Retrieval Augmented Generation (RAG) system that answers questions about
-your own text documents. It retrieves the most relevant passages from your files
+your own text and PDF documents. It retrieves the most relevant passages from your files
 and asks a local Ollama language model to answer using only those passages, so
 answers stay grounded in your source material instead of the model's memory.
 
@@ -22,14 +22,14 @@ The pipeline has three stages. Ingestion prepares the documents, retrieval finds
 the relevant pieces, and generation writes the grounded answer.
 
 ```
-                        data/source_documents/*.txt
+                  data/source_documents/*.txt and *.pdf
                                    |
                                    v
         +-------------------------------------------------+
         | 1. INGESTION  (src/ingestion.py)                |
-        |    load text files                              |
+        |    load .txt files and PDF pages (pypdf)         |
         |    split into overlapping chunks                |
-        |    attach source filename metadata              |
+        |    attach source file and page number metadata  |
         +-------------------------------------------------+
                                    |
                           list[Document] chunks
@@ -94,8 +94,14 @@ environment variables or a local `.env` file.
 
 ## Adding your own documents
 
-Place any UTF-8 `.txt` files inside `data/source_documents/`. Two example files
-are included so the system works immediately. When you add, remove, or edit
+Place any UTF-8 `.txt` files or `.pdf` files inside `data/source_documents/`.
+Two example text files are included so the system works immediately. Drop in
+any PDF, such as a handbook or a paper, to try PDF support.
+
+PDFs are read page by page with `pypdf`. Each page is split on its own, so every
+chunk remembers its page number and answers can cite it, for example
+`handbook.pdf (page 2, chunk 3)`. Scanned PDFs that contain only images
+have no text layer, so they would need OCR first. When you add, remove, or edit
 documents, rebuild the index on the next query with the `--rebuild` flag so the
 vector store reflects your changes:
 
@@ -125,23 +131,37 @@ and chunks that the answer was based on.
 uv run pytest
 ```
 
-The tests use a small in memory fixture document set and cover chunking behavior,
-vector store creation, and search relevance. The first test run downloads the
-embedding model weights, so it may take a moment.
+The tests use small fixture documents written to a temporary folder:
+
+- `tests/test_ingestion.py` checks PDF loading with page numbers, mixing PDF and
+  text files, skipping unsupported files, and the error for an empty folder. It
+  creates its PDFs on the fly with reportlab and needs no model.
+- `tests/test_retrieval.py` checks chunking, vector store creation, and search
+  relevance. The first run downloads the embedding model weights, so it may take
+  a moment.
+
+## Continuous integration
+
+`.github/workflows/tests.yml` runs on every push and pull request to `main`. It
+installs the dependencies with uv, lints with ruff, and runs pytest. The
+embedding model is cached between runs so later runs are faster.
 
 ## Project layout
 
 ```
 rag-document-qa/
-  data/source_documents/   your .txt documents (two examples included)
+  data/source_documents/   your .txt and .pdf documents (two examples included)
   src/
     config.py              typed settings loaded from the environment
-    ingestion.py           load files and split them into chunks
+    ingestion.py           load .txt and .pdf files and split them into chunks
     retrieval.py           build the FAISS index and search it
     generation.py          build the grounded prompt and call Ollama
     main.py                command line entry point for the pipeline
   tests/
+    test_ingestion.py      text and PDF loading tests
     test_retrieval.py      chunking, index, and search tests
+  .github/workflows/
+    tests.yml              CI: ruff and pytest on every push
   vector_store/            generated FAISS index (created at runtime, ignored)
 ```
 
@@ -152,7 +172,7 @@ than trusting the model to recall facts from training, the system looks up
 relevant passages from your documents and hands them to the model as context,
 with an instruction to answer only from that context.
 
-The flow is straightforward. Your documents are split into small overlapping
+The flow is straightforward. Your documents (text files or PDF pages) are split into small overlapping
 chunks. Each chunk is turned into an embedding, which is a list of numbers that
 captures its meaning, and all embeddings are stored in a FAISS index. When you
 ask a question, the question is embedded the same way and the index returns the
